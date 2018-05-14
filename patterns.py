@@ -21,84 +21,60 @@ class OutputRow(object):
     last_port = None
     next_port = None
 
+def cell_match(cell_pattern, entry):
+    if type(cell_pattern) == bool:
+        return cell_pattern
+    return bool(re.match(cell_pattern, entry))
+
+def row_match(row_pattern, row):
+    return all([cell_match(patt, cell) for patt,
+                cell in zip(pattern, row)])
+
+column_map = {
+    "PIER": "pier",
+    "VSLS": "vessel_status",
+    "VSL": "vessel_status",
+    "ETA": "eta",
+    "ETS": "ets",
+    "GRADE": "grade",
+    "QTTY": "quantity",
+    "LAST_PORT": "last_port",
+    "NEXT PORT": "next_port"
+}
+
+def maybe(pattern):
+    return
 
 def many(pattern):
     return
 
-def any_of(patterns):
-    return
-
 # Row we do not need to structure anchor or data extraction
-not_matter = dict(
-    pattern=[True],
-    getter=labmda x: None
-)
+not_matter = [True]
 
-title = dict(
-    pattern=[True, r"ALGERIAN PORTS SITUATION"],
-    getter=labmda x: None)
+empty_line = ["", "", ""]
 
-report_date = dict(
-    pattern=[True, r"\d{1,2}/\d{1,2}/\d{4}"],
-    getter=labmda x: dict(report_date=x[1])
-)
+title = [True, r"ALGERIAN PORTS SITUATION"]
 
-port = dict(
-    pattern=[r".+PORTS?"],
-    getter=labmda x: dict(port=x[0])
-)
+report_date = [True, r"\d{1,2}/\d{1,2}/\d{4}"]
 
-vessel_status = dict(
-    pattern=[r".+"],
-    getter=labmda x: dict(vessel_status=x[0]
-)
+port = [r".+PORTS?", None]
 
-forthcoming_title = dict(
-    pattern=[r"VSLS", r"ETA", r"GRADE", r"QTTY",
-             r"LAST PORT", r"NEXT PORT"],
-    getter=lambda x: None)
+vessel_status = [r".+"]
 
-forthcoming_row = dict(
-    pattern=[r".+"],
-    getter=lambda x: dict(
-        vessel_name=x[0],
-        eta=x[1],
-        grade=x[2],
-        quantity=x[3],
-        last_port=x[4],
-        next_port=x[5]))
+table_title = []
+table_row = []
 
-drifting_at_anchor_title = dict(
-    pattern=[r"VSL", r"GRADE", r"QTTY",
-             r"LAST PORT", r"NEXT PORT"],
-    getter=lambda x: None))
 
-drifting_at_anchor_row = dict(
-    pattern=[r".+"],
-    getter=lambda x: dict(
-        vessel_name=x[0],
-        grade=x[1],
-        quantity=x[2],
-        last_port=x[3],
-        next_port=x[4]))
+sheet = [empty_line, title, report_date, empty_line,
+         many([port, not_matter, not_matter,
+               many([
+                   vessel_status, maybe(empty_line), table_title,
+                   many(table_row), many(empty_line)
+               ])])]
 
-vessels_alongside_title = dict(
-    pattern=[r"PIER"
-             r"VSLS",
-             r"LAST PORT",
-             r"GRADE",
-             r"QTTY",
-             r"ETS",
-             r"NEXT PORT"],
-    getter=lambda x: None)
+def parse_structure(matrix):
+    it = iter(matrix)
+    def _parse_structure(definition, it):
+        if
 
-vessels_alongside_row = dict(
-    pattern=[r".+"],
-    getter=lambda x: dict(
-        pier=x[0],
-        vessel_name=x[1],
-        last_port=x[2],
-        grade=x[3],
-        quantity=x[4],
-        ets=x[5],
-        next_port=x[6]))
+        else: _parse_structure(definition, it)

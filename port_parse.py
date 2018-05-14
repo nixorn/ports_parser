@@ -6,26 +6,6 @@ import re
 import patterns
 
 
-class OutputRow(object):
-    """Result of parsing."""
-    report_date = None
-    port = None
-    vesselstatus = None
-    pier = None
-    vesselname = None
-    eta = None
-    ets = None
-    grade = None
-    quantity = None
-    last_port = None
-    next_port = None
-
-def cell_match(cell_pattern, entry):
-    return bool(re.match(cell_pattern, entry))
-
-def row_match(row_pattern, row):
-    return all([cell_match(patt, cell) for patt, cell in zip(pattern, row)])
-
 def parse_structures():
     pass
 
