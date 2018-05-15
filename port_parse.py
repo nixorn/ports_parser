@@ -5,19 +5,14 @@ import re
 
 from grammar import parse_sheet
 
-def parse_structures():
-    pass
 
 def extract_data(path):
-    #try:
     wb = openpyxl.load_workbook(path)
     for sheet in wb:
         matrix = [[cell.value for cell in row] for row in sheet.iter_rows()]
         # print(parse_sheet(matrix))
         parse_sheet(matrix)
-    #except:
-    #    print("Incorrect filepath")
-    #    return
+        break
 
 PARSER = argparse.ArgumentParser(description='Port situation xls extraction tool.')
 

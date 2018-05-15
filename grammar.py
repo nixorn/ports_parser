@@ -28,6 +28,8 @@ class OutputRow(object):
 def cell_match(cell_pattern, entry):
     if type(cell_pattern) == bool:
         return cell_pattern
+    elif cell_pattern == None:
+        return cell_pattern == entry
     return bool(re.match(cell_pattern, entry))
 
 def row_match(row_pattern, row):
@@ -54,13 +56,11 @@ def maybe(patterns):
         it_lst = list(it)
         it = iter(it_lst)
         try:
-            acc = []
             for patt in patterns:
-                acc.append(patt(it))
-            for val, _it in acc:
-                yield val, _it
+                for res in patt(it):
+                    yield res
         except RowNotMatch:
-            # pattern not match. return original iterator
+            # pattern not match. return origin iterator
             yield None, iter(it_lst)
     return _maybe
 
@@ -73,19 +73,18 @@ def not_more_than(n, patterns):
             try:
                 acc = []
                 for patt in patterns:
-                    acc.append(patt(it))
-                for res in acc:
-                    yield acc
+                    for res in patt(it):
+                        yield res
                 # parse next structure matches
-                for res in _not_more_than(n-1, it):
-                    yield res
+                for val, _it in _not_more_than(n-1, it):
+                    yield val, it
             except RowNotMatch:
                 yield None, iter(last_success_match)
         else:
             yield None, iter(last_success_match)
-    return lambda it : _not_more_than(n, it)
+    return lambda it: _not_more_than(n, it)
 
-many = lambda it: not_more_than(500, it)
+many = lambda it: not_more_than(100, it)
 
 def any_row(it):
     it.__next__()
@@ -126,12 +125,11 @@ def port(it):
 def vessel_status(it):
     r = it.__next__()
     print("vessel_status", r)
-    if row_match([r".+", r""], r):
+    if row_match([r".+", None], r):
         yield {"vessel_status": r[0]}, it
     else:
         raise RowNotMatch("Row do not match vessel_status pattern")
 
-# table = [table_title, many(table_row)]
 def table_title(it):
     r = it.__next__()
     print("table_title", r)
@@ -152,23 +150,10 @@ sheet_structure = [
     empty_row, title, report_date, empty_row,
     many([port, any_row, any_row,
           many([
-              vessel_status, maybe(empty_row),
-              table_title, many(table_row), not_more_than(20, empty_row)])])]
+              vessel_status, maybe([empty_row]),
+              table_title, many([table_row]), not_more_than(20, [empty_row])])])]
 
 def parse_sheet(matrix):
     it = iter(matrix)
     for parser in sheet_structure:
-        print(list(parser(it)))
-    # def parse_struct(getters, it, acc):
-    #     if getters:
-    #         getter = getters.pop(0)
-    #         result = getter(it)
-    #         if callable(result):
-    #             yield parse_struct(result, it, acc)
-    #         elif type(result) == NoneType:
-    #             yield None
-    #         elif type(result) == dict:
-    #             yield parse_struct(getters, it, acc + [result])
-    #     else:
-    #         yield acc
-    # return parse_struct(sheet_structure, it, [])
+        list(parser(it))
