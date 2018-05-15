@@ -11,7 +11,8 @@ def extract_data(path):
     for sheet in wb:
         matrix = [[cell.value for cell in row] for row in sheet.iter_rows()]
         # print(parse_sheet(matrix))
-        parse_sheet(matrix)
+        res = parse_sheet(matrix)
+        print(res)
         break
 
 PARSER = argparse.ArgumentParser(description='Port situation xls extraction tool.')

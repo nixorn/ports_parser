@@ -1,14 +1,11 @@
 import re
 from datetime import datetime
-"""
-Patterns is things we matching rows. Pattern have two parts
-1. Pattern itself, to understand match row to this pattern or not.
-2. Getter, which get from row values.
-
-True means default match."""
-
 
 class RowNotMatch(Exception):
+    pass
+
+class EOI(Exception):
+    """End of input"""
     pass
 
 class OutputRow(object):
@@ -28,9 +25,9 @@ class OutputRow(object):
 def cell_match(cell_pattern, entry):
     if type(cell_pattern) == bool:
         return cell_pattern
-    elif cell_pattern == None:
+    elif entry == None or cell_pattern == None:
         return cell_pattern == entry
-    return bool(re.match(cell_pattern, entry))
+    return bool(re.match(cell_pattern, str(entry)))
 
 def row_match(row_pattern, row):
     return all([cell_match(patt, cell)
@@ -49,100 +46,131 @@ column_map = {
 }
 
 
+def parser(definition, seq):
+    """Top level parser. Should not fall"""
+    acc = []
+    for parser in definition:
+        vals, seq = parser(seq)
+        acc += vals
+    return acc
+
 def maybe(patterns):
     # Zero or one structure which match pattern list
-    def _maybe(it):
+    def _maybe(seq):
         # have to reassemle iterator if pattern do not match
-        it_lst = list(it)
-        it = iter(it_lst)
+        seq_ = seq.copy()
         try:
+            acc = []
             for patt in patterns:
-                for res in patt(it):
-                    yield res
+                # seq in left part should be redifined by patt(seq) call
+                # in next loop step patched seq to be used
+                vals, seq = patt(seq)
+                acc += vals
+            return acc, seq
         except RowNotMatch:
             # pattern not match. return origin iterator
-            yield None, iter(it_lst)
+            return [], seq_
+        except EOI:
+            return [], []
     return _maybe
 
 def not_more_than(n, patterns):
     # from zero to n structures which match this pattern list
-    def _not_more_than(n, it):
-        last_success_match = list(it)
+    def _not_more_than(n, seq):
+        last_success_match = seq.copy()
         if n >= 0:
-            it = iter(last_success_match)
             try:
                 acc = []
                 for patt in patterns:
-                    for res in patt(it):
-                        yield res
-                # parse next structure matches
-                for val, _it in _not_more_than(n-1, it):
-                    yield val, it
-            except RowNotMatch:
-                yield None, iter(last_success_match)
+                    vals, seq = patt(seq)
+                    acc += vals
+            except (RowNotMatch, EOI):
+                return [], last_success_match
+            # parse next structure matches
+            vals, seq = _not_more_than(n-1, seq)
+            return acc + vals, seq 
         else:
-            yield None, iter(last_success_match)
-    return lambda it: _not_more_than(n, it)
+            return [], last_success_match
+    return lambda seq: _not_more_than(n, seq)
 
 many = lambda it: not_more_than(100, it)
 
-def any_row(it):
-    it.__next__()
-    yield None, it
+#######################
+# Row patterns
+def any_row(seq):
+    if not seq:
+        raise EOI()
+    # print("any row")
+    seq.pop(0)
+    return [], seq
 
-def empty_row(it):
-    r = it.__next__()
-    print("empty_row", r)
+def empty_row(seq):
+    if not seq:
+        raise EOI()
+    r = seq.pop(0)
     if r[:3] == [None, None, None]:
-        yield None, it
+        # print("empty row", r)
+        return [], seq
     else:
         raise RowNotMatch("Row do not match empty row pattern")
 
-def title(it):
-    r = it.__next__()
-    print("title", r)
+def title(seq):
+    if not seq:
+        raise EOI()
+    r = seq.pop(0)
     if row_match([True, r"ALGERIAN PORTS SITUATION"], r):
-        yield None, it
+        # print("title", r)
+        return [], seq
     else:
         raise RowNotMatch("Row do not match title pattern")
 
-def report_date(it):
-    r = it.__next__()
-    print("report_date", r)
+def report_date(seq):
+    if not seq:
+        raise EOI()
+    r = seq.pop(0)
     if type(r[1]) == datetime:
-        yield {"report_date": r[1]}, it
+        # print("report_date", r)
+        return [{"report_date": r[1]}], seq
     else:
         raise RowNotMatch("Row do not match report date pattern")
 
-def port(it):
-    r = it.__next__()
-    print("port", r)
+def port(seq):
+    if not seq:
+        raise EOI()
+    r = seq.pop(0)
     if row_match([r".+PORTS?", None], r):
-        yield {"port": r[0]}, it
+        # print("port", r)
+        return [{"port": r[0]}], seq
     else:
         raise RowNotMatch("Row do not match port pattern")
 
-def vessel_status(it):
-    r = it.__next__()
-    print("vessel_status", r)
+def vessel_status(seq):
+    if not seq:
+        raise EOI()
+    r = seq.pop(0)
     if row_match([r".+", None], r):
-        yield {"vessel_status": r[0]}, it
+        # print("vessel_status", r)
+        return [{"vessel_status": r[0]}], seq
     else:
         raise RowNotMatch("Row do not match vessel_status pattern")
 
-def table_title(it):
-    r = it.__next__()
-    print("table_title", r)
-    if row_match([r".+", r".+", r".+"]):
-        yield None, it
+def table_title(seq):
+    if not seq:
+        raise EOI()
+    r = seq.pop(0)
+    if row_match([r".+", r".+", r".+"], r):
+        # print("table_title", r)
+        return [], seq
     else:
         raise RowNotMatch("Row do not match table_title pattern")
 
-def table_row(it):
-    r = it.__next__()
-    print("table_row", r)
-    if row_match([r".+", r".+", r".+"]):
-        yield r, it
+def table_row(seq):
+    if not seq:
+        raise EOI
+    r = seq.pop(0)
+    if row_match([r".+", r".+"], r):
+        # print("table_row", r)
+        return [r], seq
     else:
         raise RowNotMatch("Row do not match table_row pattern")
 
@@ -150,10 +178,23 @@ sheet_structure = [
     empty_row, title, report_date, empty_row,
     many([port, any_row, any_row,
           many([
-              vessel_status, maybe([empty_row]),
-              table_title, many([table_row]), not_more_than(20, [empty_row])])])]
+              vessel_status,
+              maybe([empty_row]),
+              table_title, many([table_row]),
+              not_more_than(50, [empty_row]),
+              # sometimes are two tables together with no vessel_status subtitle
+              maybe([table_title, many([table_row]), not_more_than(50, [empty_row])])
+          ])])]
+
+# Нужно сделать так чтобы парсер был одной функцией принимающей одну строку и
+# возвращающей либо удачу(значение и остаток ввода) либо неудачу
+# Неудача может быть двух видов - несовпадение строки и конец ввода
+# У нас есть последовательность строк и последовательность функций, но проблема в том, что последовательность функций не детерминирована
+# и зависит от результата парсинга предыдущей функции.
+# Таким образом, у нас должен быть некий контроллер, который решает, какой паттерн подавать следующим.
+# То есть сидит контроллер и стреляет функциями парсинга, которые применяясь на следующий элемент списка возвращают контроллеру либо значение либо причину по которой облом.
+# Должны ли many и maybe быть такими контроллерами? я полагаю да.
+# Нужно ли определение рекурсивного контроллера? Я полагаю да.
 
 def parse_sheet(matrix):
-    it = iter(matrix)
-    for parser in sheet_structure:
-        list(parser(it))
+    return parser(sheet_structure, matrix)
