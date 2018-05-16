@@ -240,6 +240,4 @@ def parser(definition, seq, sheet_name):
                         "\n1.Malformed data in sheet. Fix data."
                         "\n2.Inadequate structure definition in config.py"\
                         .format(sheet_name))
-    except IllegalColumnNames as e:
-        raise Exception("Illegal column exception while parsing {} sheet.".format(sheet_name))
     return acc
