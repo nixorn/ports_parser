@@ -3,17 +3,27 @@ from datetime import datetime
 
 column_map = {
     "PIER": "pier",
+    "Pier": "pier",
+    "PIER N": "pier",
     "VSLS": "vessel_name",
     "VSL": "vessel_name",
+    "Vessel": "vessel_name",
+    "VESSEL": "vessel_name",
     "ETA": "eta",
     "ETS": "ets",
     "GRADE": "grade",
+    "Grade": "grade",
     "QTTY": "quantity",
     "LAST_PORT": "last_port",
     "LAST PORT": "last_port",
+    "LAST PORT ": "last_port",
     "NEXT PORT": "next_port",
+    "Destination": "next_port",
     "DESTINATION": "next_port",
-    "SAILED": "not_matter"
+    "SAILED": "not_matter",
+    "Sailed": "not_matter",
+    "ETB": "not_matter",
+    "Account": "not_matter"
 }
 
 # When column names not defined in config
@@ -43,13 +53,13 @@ def row_match(row_pattern, row):
 # 1. all parsers get sequence to parse as single argument
 # 2. all parsers return pair with parsed value(wrapped into list) and rest of parsed sequence,
 #    which have to be processed by next parser
-# 3. any parser can throw one of three exceptions - EOI or RowNotMatch or IllegalColumnNames
+# 3. any parser can throw one of three exceptions - EOI or RowNotMatch
+# table parser also can throw IllegalColumnNames.
 
 # Row-level parsers
 def any_row(seq):
     if not seq:
         raise EOI()
-    # print("any row")
     seq.pop(0)
     return [], seq
 
@@ -58,60 +68,54 @@ def empty_row(seq):
         raise EOI()
     r = seq.pop(0)
     if r[:3] == [None, None, None]:
-        # print("empty row", r)
         return [], seq
     else:
-        raise RowNotMatch("Row do not match empty row pattern")
+        raise RowNotMatch("Row {} do not match empty row pattern".format(r))
 
 def title(seq):
     if not seq:
         raise EOI()
     r = seq.pop(0)
     if row_match([True, r"ALGERIAN PORTS SITUATION"], r):
-        # print("title", r)
         return [], seq
     else:
-        raise RowNotMatch("Row do not match title pattern")
+        raise RowNotMatch("Row {} do not match title pattern".format(r))
 
 def report_date(seq):
     if not seq:
         raise EOI()
     r = seq.pop(0)
     if type(r[1]) == datetime:
-        # print("report_date", r)
         return [{"report_date": r[1]}], seq
     else:
-        raise RowNotMatch("Row do not match report date pattern")
+        raise RowNotMatch("Row {} do not match report date pattern".format(r))
 
 def port(seq):
     if not seq:
         raise EOI()
     r = seq.pop(0)
     if row_match([r".*PORTS?", None], r):
-        # print("port", r)
         return [{"port": r[0]}], seq
     else:
-        raise RowNotMatch("Row do not match port pattern")
+        raise RowNotMatch("Row {} do not match port pattern".format(r))
 
 def port_status(seq):
     if not seq:
         raise EOI()
     r = seq.pop(0)
     if row_match([True, r"(OPEN|CLOSED.*)"], r):
-        # print("port", r)
         return [], seq
     else:
-        raise RowNotMatch("Row do not match port_status pattern")
+        raise RowNotMatch("Row {} do not match port_status pattern".format(r))
 
 def vessel_status(seq):
     if not seq:
         raise EOI()
     r = seq.pop(0)
     if row_match([r".+", None], r):
-        # print("vessel_status", r)
         return [{"vessel_status": r[0]}], seq
     else:
-        raise RowNotMatch("Row do not match vessel_status pattern")
+        raise RowNotMatch("Row {} do not match vessel_status pattern".format(r))
 
 
 def table_title(seq):
@@ -123,17 +127,18 @@ def table_title(seq):
     if mb_title - possible_col_names == set():
         return [r], seq
     else:
-        raise RowNotMatch("Row do not match table_title pattern")
+        raise RowNotMatch("Row {} do not match table_title pattern."
+                          "More likely because {} column names not defined in "
+                          "grammar.column_map".format(r, mb_title - possible_col_names))
 
 def table_row(seq):
     if not seq:
         raise EOI
     r = seq.pop(0)
-    if r[0] is not None:
-        # print("table_row", r)
+    if r[:2] != [None, None]:
         return [[str(c) for c in r]], seq
     else:
-        raise RowNotMatch("Row do not match table_row pattern")
+        raise RowNotMatch("Row {} do not match table_row pattern".format(r))
 
 ##################
 # contextual parsers.
@@ -179,10 +184,21 @@ def not_more_than(n, patterns):
             return [], last_success_match
     return lambda seq: _not_more_than(n, seq)
 
-# from zero to 100 structures, which match this parser list
-many = lambda it: not_more_than(100, it)
+def not_more_than_force(n, patterns):
+    # from one to n structures which match this pattern list
+    def _not_more_than_force(n, seq):
+        acc = []
+        for patt in patterns:
+            val, seq = patt(seq)
+            acc += val
+        parser = not_more_than(n-1, patterns)
+        rest, seq = parser(seq)
+        return acc + rest, seq
+    return lambda seq: _not_more_than_force(n, seq)
 
 
+# from 1 to 100 structures, which match this parser list
+many = lambda it: not_more_than_force(100, it)
 
 # Table is regular parser, but using contextual
 def table(seq):
@@ -198,8 +214,10 @@ def table(seq):
                 "Define it in grammar.column_names please."\
                 .format(k))
         column_indexes[column_name] = idx
-    row_parser = many([table_row])
+    row_parser = not_more_than(1000, ([table_row]))
     rows, seq = row_parser(seq)
+    empty_row_parser = not_more_than(50, [empty_row])
+    _, seq = empty_row_parser(seq)
     for row in rows:
         result_dict = {}
         for name, index in column_indexes.items():

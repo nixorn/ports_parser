@@ -8,14 +8,12 @@ sheet_structure = [
         vessel_status,
         maybe([empty_row]),
         table,
-        not_more_than(50, [empty_row]),
         # sometimes are two tables together with no vessel_status subtitle
-        maybe([table, not_more_than(50, [empty_row])])]),
+        maybe([table])]),
     many([port, port_status, empty_row,
           many([
               vessel_status,
               maybe([empty_row]),
               table,
-              not_more_than(50, [empty_row]),
-              maybe([table, not_more_than(50, [empty_row])])
+              maybe([table])
           ])])]

@@ -27,19 +27,19 @@ if __name__ == '__main__':
     ARGS = PARSER.parse_args()
     weekly_formatted = extract_data(ARGS.file)
     print(
-        "ReportDate, " +\
-        "Port, " +\
-        "Vesselstatus, " +\
-        "Pier, " +\
-        "Vesselname, " +\
-        "ETA, " +\
-        "ETS, " +\
-        "Grade, " +\
-        "Quantity, " +\
-        "LastPort, " +\
+        "ReportDate;" +\
+        "Port;" +\
+        "Vesselstatus;" +\
+        "Pier;" +\
+        "Vesselname;" +\
+        "ETA;" +\
+        "ETS;" +\
+        "Grade;" +\
+        "Quantity;" +\
+        "LastPort;" +\
         "NextPort")
     for row in bring_beauty(weekly_formatted):
-        print(", ".join(row))
+        print(";".join(row))
     if not ARGS.file:
         PARSER.print_help()
 
