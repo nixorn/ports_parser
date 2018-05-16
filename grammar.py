@@ -4,24 +4,11 @@ from datetime import datetime
 class RowNotMatch(Exception):
     pass
 
+# End of input
 class EOI(Exception):
-    """End of input"""
     pass
 
-class OutputRow(object):
-    """Result of parsing."""
-    report_date = None
-    port = None
-    vessel_status = None
-    pier = None
-    vessel_name = None
-    eta = None
-    ets = None
-    grade = None
-    quantity = None
-    last_port = None
-    next_port = None
-
+# basic parsers machinery
 def cell_match(cell_pattern, entry):
     if type(cell_pattern) == bool:
         return cell_pattern
@@ -33,24 +20,12 @@ def row_match(row_pattern, row):
     return all([cell_match(patt, cell)
                 for patt, cell in zip(row_pattern, row)])
 
-def parser(definition, seq, sheet_name):
-    """Top level parser."""
-    acc = []
-    try:
-        for parser in definition:
-            vals, seq = parser(seq)
-            acc += vals
-    except EOI:
-        print("Done.")
-    except RowNotMatch:
-        print("Can not parse sheet {}. Possibly reasons:"
-              "\n1.Malformed data in sheet."
-              "\n2.Inadequate structure definition in config.py"\
-              .format(sheet_name))
-    return acc
+# Parsers have api:
+# 1. all parsers get sequence to parse as single argument
+# 2. all parsers return pair with parsed value and rest of parsed sequence,
+#    which have to be processed by next parser
+# 3. any parser can throw one of two exceptions - EOI or RowNotMatch
 
-
-#######################
 # Row-level parsers
 def any_row(seq):
     if not seq:
@@ -99,6 +74,16 @@ def port(seq):
     else:
         raise RowNotMatch("Row do not match port pattern")
 
+def port_status(seq):
+    if not seq:
+        raise EOI()
+    r = seq.pop(0)
+    if row_match([True, r"(OPEN|CLOSED.*)"], r):
+        # print("port", r)
+        return [{"port": r[0]}], seq
+    else:
+        raise RowNotMatch("Row do not match port_status pattern")
+
 def vessel_status(seq):
     if not seq:
         raise EOI()
@@ -108,6 +93,7 @@ def vessel_status(seq):
         return [{"vessel_status": r[0]}], seq
     else:
         raise RowNotMatch("Row do not match vessel_status pattern")
+
 
 def table_title(seq):
     if not seq:
@@ -123,15 +109,17 @@ def table_row(seq):
     if not seq:
         raise EOI
     r = seq.pop(0)
-    if row_match([r".+", r".+"], r):
+    if row_match([r".+"], r):
         # print("table_row", r)
-        return [r], seq
+        return [[str(c) for c in r]], seq
     else:
         raise RowNotMatch("Row do not match table_row pattern")
 
-
 ##################
-# contextual parsers. can get list of row parsers, list of contextual parsers or mixed
+# contextual parsers.
+# 1. get list of row parsers or list of contextual parsers or mixed as argument
+# 2. returns regular parser with api described above
+
 def maybe(patterns):
     # Zero or one structure which match pattern list
     def _maybe(seq):
@@ -173,3 +161,21 @@ def not_more_than(n, patterns):
 
 # from zero to 100 structures, which match this parser list
 many = lambda it: not_more_than(100, it)
+
+
+# Top level parser with different api.
+# Does not return rest of parsed sequence.
+def parser(definition, seq, sheet_name):
+    acc = []
+    try:
+        for parser in definition:
+            vals, seq = parser(seq)
+            acc += vals
+    except EOI:
+        print("Done.")
+    except RowNotMatch:
+        raise Exception("Can not parse sheet {}. Possibly reasons:"
+                        "\n1.Malformed data in sheet. Fix data."
+                        "\n2.Inadequate structure definition in config.py"\
+                        .format(sheet_name))
+    return acc
