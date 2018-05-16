@@ -3,17 +3,20 @@ import argparse
 import openpyxl
 import re
 
-from grammar import parse_sheet
+from config import sheet_structure
+from grammar import parser
+from postprocessing import bring_beauty
+
 
 
 def extract_data(path):
     wb = openpyxl.load_workbook(path)
-    for sheet in wb:
+    parsed_sheets = []
+    for sheet, sheet_name in zip(wb, wb.get_sheet_names()):
         matrix = [[cell.value for cell in row] for row in sheet.iter_rows()]
-        # print(parse_sheet(matrix))
-        res = parse_sheet(matrix)
-        print(res)
-        break
+        parsed_sheets += parser(sheet_structure, matrix, sheet_name)
+    return parsed_sheets
+
 
 PARSER = argparse.ArgumentParser(description='Port situation xls extraction tool.')
 
@@ -23,7 +26,8 @@ PARSER.add_argument('--file', nargs='?',
 
 if __name__ == '__main__':
     ARGS = PARSER.parse_args()
-    extract_data(ARGS.file)
+    weekly_formatted = extract_data(ARGS.file)
+    bring_beauty(weekly_formatted)
     if not ARGS.file:
         PARSER.print_help()
 
