@@ -11,8 +11,9 @@ column_map = {
     "QTTY": "quantity",
     "LAST_PORT": "last_port",
     "LAST PORT": "last_port",
-    "OLD PORT": "last_port",
-    "NEXT PORT": "next_port"
+    "NEXT PORT": "next_port",
+    "DESTINATION": "next_port",
+    "SAILED": "not_matter"
 }
 
 # When column names not defined in config
@@ -86,7 +87,7 @@ def port(seq):
     if not seq:
         raise EOI()
     r = seq.pop(0)
-    if row_match([r".+PORTS?", None], r):
+    if row_match([r".*PORTS?", None], r):
         # print("port", r)
         return [{"port": r[0]}], seq
     else:
@@ -98,7 +99,7 @@ def port_status(seq):
     r = seq.pop(0)
     if row_match([True, r"(OPEN|CLOSED.*)"], r):
         # print("port", r)
-        return [{"port": r[0]}], seq
+        return [], seq
     else:
         raise RowNotMatch("Row do not match port_status pattern")
 
@@ -117,8 +118,9 @@ def table_title(seq):
     if not seq:
         raise EOI()
     r = seq.pop(0)
-    if row_match([r".+", r".+", r".+"], r):
-        # print("table_title", r)
+    possible_col_names = set(column_map.keys())
+    mb_title = set(r[:4])
+    if mb_title - possible_col_names == set():
         return [r], seq
     else:
         raise RowNotMatch("Row do not match table_title pattern")
@@ -127,7 +129,7 @@ def table_row(seq):
     if not seq:
         raise EOI
     r = seq.pop(0)
-    if row_match([r".+"], r):
+    if r[0] is not None:
         # print("table_row", r)
         return [[str(c) for c in r]], seq
     else:
@@ -220,4 +222,6 @@ def parser(definition, seq, sheet_name):
                         "\n1.Malformed data in sheet. Fix data."
                         "\n2.Inadequate structure definition in config.py"\
                         .format(sheet_name))
+    except IllegalColumnNames as e:
+        raise Exception("Illegal column exception while parsing {} sheet.".format(sheet_name))
     return acc
