@@ -20,7 +20,7 @@ python3 port_parse.py --file Cases\ to\ be\ extracted.xlsx >> result.csv
 In Cases to be extracted.xlsx lot of places which looks like:
 
 | VSLS            | GRADE  |  QTTY | LAST PORT | NEXT PORT |
-|-----------------|--------|-------|-----------------------|
+| --------------- | ------ | ----- | --------- | --------- |
 |                 |        |       |           |           |
 | NISSOS HERACLEA | NAPHTA | 85000 |           |           |
 
@@ -40,7 +40,7 @@ I used openpyxl, it does not support xls.
 Lets imagine, we have fragment like this somewhere in file:
 
 | VESSELS SAILED |       |         |        |      |             |
-|----------------|-------|---------|--------|------|-------------|
+| -------------- | ----- | ------- | ------ | ---- | ----------- |
 | Vessel         | Grade | Account | Sailed | QTTY | Destination |
 
 If any of column names (Vessel, Grade, etc) not described in grammar.column_map parser SILENTLY will no extract data from this occurrence to end of sheet. Have to fix this in next versions.
