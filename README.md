@@ -47,4 +47,4 @@ Lets imagine, we have fragment like this somewhere in file:
 | Vessel         | Grade | Account | Sailed | QTTY | Destination |
 
 
-If any of column names (Vessel, Grade, etc) not described in grammar.column_map parser SILENTLY will no extract data from this occurrence to end of sheet. Have to fix this in next versions.
+If any of column names (Vessel, Grade, etc) not described in grammar.column\_map parser will throw exception, and you will have to edit grammar.column\_map.

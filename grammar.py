@@ -4,6 +4,7 @@ from datetime import datetime
 column_map = {
     "PIER": "pier",
     "Pier": "pier",
+    "Pier ": "pier",
     "PIER N": "pier",
     "VSLS": "vessel_name",
     "VSL": "vessel_name",
@@ -124,12 +125,16 @@ def table_title(seq):
     r = seq.pop(0)
     possible_col_names = set(column_map.keys())
     mb_title = set(r[:4])
-    if mb_title - possible_col_names == set():
+    if row_match([r".+", r"^(?!OPEN|CLOSED.*)", r".+", r"^(?!OPEN|CLOSED.*)"], r):
+        if mb_title - possible_col_names != set():
+            raise IllegalColumnNames("Can not parse row {} as table title,"
+                                     "because columns {} not defined in grammar.column_map."\
+                                     .format(r, mb_title - possible_col_names))
         return [r], seq
     else:
         raise RowNotMatch("Row {} do not match table_title pattern."
                           "More likely because {} column names not defined in "
-                          "grammar.column_map".format(r, mb_title - possible_col_names))
+                          "".format(r, mb_title - possible_col_names))
 
 def table_row(seq):
     if not seq:
@@ -207,12 +212,7 @@ def table(seq):
     title = list(filter(None, title.pop()))
     column_indexes = {}
     for idx, k in enumerate(title):
-        column_name = column_map.get(k)
-        if not column_name:
-            raise IllegalColumnNames(
-                "Don't know what table header {} means."
-                "Define it in grammar.column_names please."\
-                .format(k))
+        column_name = column_map[k]
         column_indexes[column_name] = idx
     row_parser = not_more_than(1000, ([table_row]))
     rows, seq = row_parser(seq)
@@ -239,5 +239,9 @@ def parser(definition, seq, sheet_name):
         raise Exception("Can not parse sheet {}. Possibly reasons:"
                         "\n1.Malformed data in sheet. Fix data."
                         "\n2.Inadequate structure definition in config.py"\
+                        .format(sheet_name))
+    except IllegalColumnNames:
+        raise Exception("Can not parse sheet {}. Possibly reason:"
+                        "Column names from exception above not defined in grammar.column_map."
                         .format(sheet_name))
     return acc
