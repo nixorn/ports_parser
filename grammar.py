@@ -21,9 +21,9 @@ column_map = {
     "NEXT PORT": "next_port",
     "Destination": "next_port",
     "DESTINATION": "next_port",
-    "SAILED": "not_matter",
-    "Sailed": "not_matter",
-    "ETB": "not_matter",
+    "SAILED": "sailed",
+    "Sailed": "sailed",
+    "ETB": "etb",
     "Account": "not_matter"
 }
 
@@ -68,7 +68,7 @@ def empty_row(seq):
     if not seq:
         raise EOI()
     r = seq.pop(0)
-    if r[:3] == [None, None, None]:
+    if list(filter(None, r)) == []:
         return [], seq
     else:
         raise RowNotMatch("Row {} do not match empty row pattern".format(r))
@@ -168,6 +168,8 @@ def maybe(patterns):
             return [], seq_
         except EOI:
             return [], []
+        # except IllegalColumnNames:
+        #     return [], seq_
     return _maybe
 
 def not_more_than(n, patterns):
@@ -227,21 +229,22 @@ def table(seq):
 
 # Top level parser with different api.
 # Does not return rest of parsed sequence.
-def parser(definition, seq, sheet_name):
+def parser(definition, seq, sheet_name, file_name):
     acc = []
-    try:
-        for parser in definition:
-            vals, seq = parser(seq)
-            acc += vals
-    except EOI:
-        print("Done.")
-    except RowNotMatch:
-        raise Exception("Can not parse sheet {}. Possibly reasons:"
+    with open("error.log", "w") as f:
+        for pars in definition:
+            try:
+                vals, seq = pars(seq)
+                acc += vals
+            except EOI:
+                pass
+            except RowNotMatch:
+                f.write("Can not parse file {}, sheet {}. Possibly reasons:"
                         "\n1.Malformed data in sheet. Fix data."
-                        "\n2.Inadequate structure definition in config.py"\
-                        .format(sheet_name))
-    except IllegalColumnNames:
-        raise Exception("Can not parse sheet {}. Possibly reason:"
-                        "Column names from exception above not defined in grammar.column_map."
-                        .format(sheet_name))
+                        "\n2.Inadequate structure definition in config.py\n\n"\
+                        .format(file_name, sheet_name))
+            except IllegalColumnNames:
+                f.write("Can not parse file {}, sheet {}. Possibly reason:"
+                        "Column names from exception above not defined in grammar.column_map.\n\n"
+                        .format(file_name, sheet_name))
     return acc

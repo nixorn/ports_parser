@@ -8,15 +8,6 @@ from grammar import parser
 from postprocessing import bring_beauty
 
 
-def extract_data(path):
-    wb = openpyxl.load_workbook(path)
-    parsed_sheets = []
-    for sheet, sheet_name in zip(wb, wb.sheetnames):
-        matrix = [[cell.value for cell in row] for row in sheet.iter_rows()]
-        parsed_sheets += parser(sheet_structure, matrix, sheet_name)
-    return parsed_sheets
-
-
 PARSER = argparse.ArgumentParser(description='Port situation xls extraction tool.')
 
 
@@ -25,7 +16,8 @@ PARSER.add_argument('--file', nargs='?',
 
 if __name__ == '__main__':
     ARGS = PARSER.parse_args()
-    weekly_formatted = extract_data(ARGS.file)
+    if not ARGS.file:
+        PARSER.print_help()
     print(
         "ReportDate;" +\
         "Port;" +\
@@ -37,9 +29,13 @@ if __name__ == '__main__':
         "Grade;" +\
         "Quantity;" +\
         "LastPort;" +\
-        "NextPort")
-    for row in bring_beauty(weekly_formatted):
+        "NextPort;" +\
+        "Sailed;" +\
+        "ETB")
+    wb = openpyxl.load_workbook(ARGS.file)
+    parsed_sheets = []
+    for sheet, sheet_name in zip(wb, wb.sheetnames):
+        matrix = [[cell.value for cell in row] for row in sheet.iter_rows()]
+        parsed_sheets += parser(sheet_structure, matrix, sheet_name, ARGS.file)
+    for row in bring_beauty(parsed_sheets):
         print(";".join(row))
-    if not ARGS.file:
-        PARSER.print_help()
-

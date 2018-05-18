@@ -1,6 +1,7 @@
 from datetime import datetime
 from config import column_map
 
+
 class OutputRow(object):
     """Result of parsing."""
     report_date = None
@@ -14,6 +15,8 @@ class OutputRow(object):
     quantity = None
     last_port = None
     next_port = None
+    sailed = None
+    etb = None
 
     def __init__(self, **kwargs):
         for name, value in kwargs.items():
@@ -24,7 +27,7 @@ class OutputRow(object):
             lambda x: x if x else "",
             [self.report_date,
              self.port,
-             self.vessel_status,
+             self.vessel_status.replace(":", "").strip(),
              self.pier,
              self.vessel_name,
              self.eta,
@@ -32,14 +35,16 @@ class OutputRow(object):
              self.grade,
              self.quantity,
              self.last_port,
-             self.next_port])
+             self.next_port,
+             self.sailed,
+             self.etb,
+            ])
 
 def bring_beauty(target_list):
     if not target_list:
-        return acc_list
+        return []
     acc_list = []
     is_table_row = False
-    # print(target_list)
     # default values
     report_date = datetime.fromordinal(1)
     port = "UNPARSED"
